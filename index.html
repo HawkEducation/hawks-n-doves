@@ -3,27 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bird Evolution: Hawks-n-Doves</title>
+    <title>Bird Evolution: Hawks-n-Crows</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #eceff1; color: #333; padding: 20px; }
-        .container { max-width: 1000px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
-        h1 { text-align: center; margin-bottom: 10px; color: #2c3e50; }
-        .controls { text-align: center; margin-bottom: 20px; }
-        button { padding: 10px 20px; font-size: 16px; cursor: pointer; background: #3498db; color: white; border: none; border-radius: 5px; transition: 0.2s; }
-        button:hover { background: #2980b9; }
-        canvas { margin-top: 20px; max-height: 400px; }
-        .description { font-size: 0.9em; color: #666; text-align: center; margin-bottom: 30px; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #1a1a2e; color: #e0e0e0; padding: 20px; }
+        .container { max-width: 1100px; margin: auto; background: #16213e; padding: 30px; border-radius: 12px; box-shadow: 0 4px 30px rgba(0,0,0,0.5); }
+        h1 { text-align: center; color: #0f3460; background: #e94560; padding: 10px; border-radius: 8px; margin-bottom: 5px; }
+        .controls { text-align: center; margin: 20px 0; }
+        button { padding: 12px 25px; font-size: 16px; cursor: pointer; background: #e94560; color: white; border: none; border-radius: 5px; font-weight: bold; }
+        button:hover { background: #ff4d6d; }
+        canvas { margin-top: 20px; background: #1b1b2f; border-radius: 8px; padding: 10px; }
+        .stats-text { text-align: center; color: #95a5a6; margin-bottom: 20px; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>Bird Evolution Simulator</h1>
-    <p class="description">Watch as Toucans, Crows, and Finches compete for Nut and Berry trees.</p>
+    <h1>Hawks-n-Crows: The Wolf Update 🐺</h1>
+    <p class="stats-text">Predators now target high-density trees. Crows, watch your backs.</p>
     
     <div class="controls">
-        <button onclick="runSimulation()">Run New Simulation</button>
+        <button onclick="runSimulation()">Deploy The Wolves</button>
     </div>
 
     <canvas id="strategyChart"></canvas>
@@ -36,9 +36,9 @@ let strategyChart, beakChart;
 function runSimulation() {
     const numTrees = 150;
     const initialPopSize = 100;
-    const days = 50;
+    const days = 60;
     const mutationRate = 0.1;
-    const habitatAccuracy = 0.9; // 90% chance to go to the right tree type
+    const wolfThreat = 0.15; // 15% chance per bird at a tree for a wolf attack
 
     const treeTypes = Array(75).fill('Nut').concat(Array(75).fill('Berry'));
     const strategies = ['Dove', 'Toucan', 'Hummingbird', 'Crow', 'Hawk'];
@@ -71,10 +71,8 @@ function runSimulation() {
                 target = Math.floor(Math.random() * numTrees);
             } else {
                 const home = treeTypes.map((t, i) => t === b.beak ? i : -1).filter(i => i !== -1);
-                const away = treeTypes.map((t, i) => t !== b.beak ? i : -1).filter(i => i !== -1);
-                target = Math.random() < habitatAccuracy ? home[Math.floor(Math.random() * home.length)] : away[Math.floor(Math.random() * away.length)];
+                target = home[Math.floor(Math.random() * home.length)];
             }
-
             if (b.beak === 'Finch' || b.beak === treeTypes[target]) {
                 trees[target].push({ ...b, currentStrat: b.genes[Math.floor(Math.random() * 4)] });
             }
@@ -83,6 +81,14 @@ function runSimulation() {
         let nextPop = [];
         trees.forEach(occupants => {
             if (occupants.length === 0) return;
+
+            // WOLF ATTACK: Higher density = more wolf food
+            if (Math.random() < (occupants.length * wolfThreat)) {
+                occupants.splice(Math.floor(Math.random() * occupants.length), 1);
+            }
+
+            if (occupants.length === 0) return;
+
             if (occupants.length === 1) {
                 let p = occupants[0];
                 nextPop.push(p, mutate(p, mutationRate, beaks));
@@ -91,7 +97,7 @@ function runSimulation() {
                 if (c1.currentStrat === 'Dove' && c2.currentStrat === 'Dove') {
                     nextPop.push(c1, c2);
                 } else if (c1.currentStrat === 'Hawk' && c2.currentStrat === 'Hawk') {
-                    // Both die in fight
+                    // Both die
                 } else {
                     const winner = c1.currentStrat === 'Hawk' ? c1 : c2;
                     nextPop.push(winner, mutate(winner, mutationRate, beaks));
@@ -100,60 +106,52 @@ function runSimulation() {
         });
         population = nextPop;
     }
-
     updateCharts(history, days);
 }
 
 function mutate(b, rate, beakList) {
     let nb = JSON.parse(JSON.stringify(b));
-    if (Math.random() < rate) {
-        let idx = Math.floor(Math.random() * 4);
-        nb.genes[idx] = (nb.genes[idx] === 'Hawk' ? 'Dove' : 'Hawk');
-    }
-    if (Math.random() < rate) {
-        nb.beak = beakList[Math.floor(Math.random() * beakList.length)];
-    }
+    if (Math.random() < rate) nb.genes[Math.floor(Math.random() * 4)] = (nb.genes[Math.floor(Math.random() * 4)] === 'Hawk' ? 'Dove' : 'Hawk');
+    if (Math.random() < rate) nb.beak = beakList[Math.floor(Math.random() * beakList.length)];
     return nb;
 }
 
 function updateCharts(history, days) {
     const labels = Array.from({length: days}, (_, i) => i);
-    
     if (strategyChart) strategyChart.destroy();
     if (beakChart) beakChart.destroy();
 
-    strategyChart = new Chart(document.getElementById('strategyChart'), {
+    const ctxS = document.getElementById('strategyChart').getContext('2d');
+    strategyChart = new Chart(ctxS, {
         type: 'line',
         data: {
             labels: labels,
             datasets: [
-                { label: 'Dove', data: history.Dove, borderColor: '#3498db', fill: false, tension: 0.3 },
-                { label: 'Toucan', data: history.Toucan, borderColor: '#1abc9c', fill: false, tension: 0.3 },
-                { label: 'Hummingbird', data: history.Hummingbird, borderColor: '#9b59b6', fill: false, tension: 0.3 },
-                { label: 'Crow', data: history.Crow, borderColor: '#f39c12', fill: false, tension: 0.3 },
-                { label: 'Hawk', data: history.Hawk, borderColor: '#e74c3c', fill: false, tension: 0.3 }
+                { label: 'Dove', data: history.Dove, borderColor: '#3498db' },
+                { label: 'Toucan', data: history.Toucan, borderColor: '#1abc9c' },
+                { label: 'Hummingbird', data: history.Hummingbird, borderColor: '#9b59b6' },
+                { label: 'Crow', data: history.Crow, borderColor: '#f39c12' },
+                { label: 'Hawk', data: history.Hawk, borderColor: '#e74c3c' }
             ]
         },
-        options: { responsive: true, plugins: { title: { display: true, text: 'Bird Strategy (Personality) Over Time' } } }
+        options: { plugins: { legend: { labels: { color: 'white' } } } }
     });
 
-    beakChart = new Chart(document.getElementById('beakChart'), {
+    const ctxB = document.getElementById('beakChart').getContext('2d');
+    beakChart = new Chart(ctxB, {
         type: 'line',
         data: {
             labels: labels,
             datasets: [
-                { label: 'Nut Beak', data: history.Nut, borderColor: '#795548', fill: false, tension: 0.3 },
-                { label: 'Berry Beak', data: history.Berry, borderColor: '#2e7d32', fill: false, tension: 0.3 },
-                { label: 'Finch Beak', data: history.Finch, borderColor: '#fbc02d', fill: false, tension: 0.3 }
+                { label: 'Nut Beak', data: history.Nut, borderColor: '#795548' },
+                { label: 'Berry Beak', data: history.Berry, borderColor: '#2e7d32' },
+                { label: 'Finch Beak', data: history.Finch, borderColor: '#fbc02d' }
             ]
         },
-        options: { responsive: true, plugins: { title: { display: true, text: 'Beak Type (Specialization) Over Time' } } }
+        options: { plugins: { legend: { labels: { color: 'white' } } } }
     });
 }
-
-// Initial Run
 runSimulation();
 </script>
-
 </body>
 </html>
