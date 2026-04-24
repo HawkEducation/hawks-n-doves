@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bird Evolution: The Finch Update</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #eceff1; color: #333; padding: 20px; }
+        .container { max-width: 1000px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+        h1 { text-align: center; margin-bottom: 10px; color: #2c3e50; }
+        .controls { text-align: center; margin-bottom: 20px; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; background: #3498db; color: white; border: none; border-radius: 5px; transition: 0.2s; }
+        button:hover { background: #2980b9; }
+        canvas { margin-top: 20px; max-height: 400px; }
+        .description { font-size: 0.9em; color: #666; text-align: center; margin-bottom: 30px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Bird Evolution Simulator</h1>
+    <p class="description">Watch as Toucans, Crows, and Finches compete for Nut and Berry trees.</p>
+    
+    <div class="controls">
+        <button onclick="runSimulation()">Run New Simulation</button>
+    </div>
+
+    <canvas id="strategyChart"></canvas>
+    <canvas id="beakChart"></canvas>
+</div>
+
+<script>
+let strategyChart, beakChart;
+
+function runSimulation() {
+    const numTrees = 150;
+    const initialPopSize = 100;
+    const days = 50;
+    const mutationRate = 0.1;
+    const habitatAccuracy = 0.9; // 90% chance to go to the right tree type
+
+    const treeTypes = Array(75).fill('Nut').concat(Array(75).fill('Berry'));
+    const strategies = ['Dove', 'Toucan', 'Hummingbird', 'Crow', 'Hawk'];
+    const beaks = ['Nut', 'Berry', 'Finch'];
+
+    let population = [];
+    for (let i = 0; i < initialPopSize; i++) {
+        population.push({
+            genes: Array.from({length: 4}, () => Math.random() > 0.5 ? 'Hawk' : 'Dove'),
+            beak: beaks[Math.floor(Math.random() * beaks.length)]
+        });
+    }
+
+    const history = { Dove: [], Toucan: [], Hummingbird: [], Crow: [], Hawk: [], Nut: [], Berry: [], Finch: [] };
+
+    for (let d = 0; d < days; d++) {
+        let counts = { Dove: 0, Toucan: 0, Hummingbird: 0, Crow: 0, Hawk: 0, Nut: 0, Berry: 0, Finch: 0 };
+        population.forEach(b => {
+            const hawkCount = b.genes.filter(g => g === 'Hawk').length;
+            counts[strategies[hawkCount]]++;
+            counts[b.beak]++;
+        });
+
+        Object.keys(history).forEach(k => history[k].push(counts[k]));
+
+        let trees = Array.from({length: numTrees}, () => []);
+        population.forEach(b => {
+            let target;
+            if (b.beak === 'Finch') {
+                target = Math.floor(Math.random() * numTrees);
+            } else {
+                const home = treeTypes.map((t, i) => t === b.beak ? i : -1).filter(i => i !== -1);
+                const away = treeTypes.map((t, i) => t !== b.beak ? i : -1).filter(i => i !== -1);
+                target = Math.random() < habitatAccuracy ? home[Math.floor(Math.random() * home.length)] : away[Math.floor(Math.random() * away.length)];
+            }
+
+            if (b.beak === 'Finch' || b.beak === treeTypes[target]) {
+                trees[target].push({ ...b, currentStrat: b.genes[Math.floor(Math.random() * 4)] });
+            }
+        });
+
+        let nextPop = [];
+        trees.forEach(occupants => {
+            if (occupants.length === 0) return;
+            if (occupants.length === 1) {
+                let p = occupants[0];
+                nextPop.push(p, mutate(p, mutationRate, beaks));
+            } else {
+                const [c1, c2] = [occupants[0], occupants[1]];
+                if (c1.currentStrat === 'Dove' && c2.currentStrat === 'Dove') {
+                    nextPop.push(c1, c2);
+                } else if (c1.currentStrat === 'Hawk' && c2.currentStrat === 'Hawk') {
+                    // Both die in fight
+                } else {
+                    const winner = c1.currentStrat === 'Hawk' ? c1 : c2;
+                    nextPop.push(winner, mutate(winner, mutationRate, beaks));
+                }
+            }
+        });
+        population = nextPop;
+    }
+
+    updateCharts(history, days);
+}
+
+function mutate(b, rate, beakList) {
+    let nb = JSON.parse(JSON.stringify(b));
+    if (Math.random() < rate) {
+        let idx = Math.floor(Math.random() * 4);
+        nb.genes[idx] = (nb.genes[idx] === 'Hawk' ? 'Dove' : 'Hawk');
+    }
+    if (Math.random() < rate) {
+        nb.beak = beakList[Math.floor(Math.random() * beakList.length)];
+    }
+    return nb;
+}
+
+function updateCharts(history, days) {
+    const labels = Array.from({length: days}, (_, i) => i);
+    
+    if (strategyChart) strategyChart.destroy();
+    if (beakChart) beakChart.destroy();
+
+    strategyChart = new Chart(document.getElementById('strategyChart'), {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                { label: 'Dove', data: history.Dove, borderColor: '#3498db', fill: false, tension: 0.3 },
+                { label: 'Toucan', data: history.Toucan, borderColor: '#1abc9c', fill: false, tension: 0.3 },
+                { label: 'Hummingbird', data: history.Hummingbird, borderColor: '#9b59b6', fill: false, tension: 0.3 },
+                { label: 'Crow', data: history.Crow, borderColor: '#f39c12', fill: false, tension: 0.3 },
+                { label: 'Hawk', data: history.Hawk, borderColor: '#e74c3c', fill: false, tension: 0.3 }
+            ]
+        },
+        options: { responsive: true, plugins: { title: { display: true, text: 'Bird Strategy (Personality) Over Time' } } }
+    });
+
+    beakChart = new Chart(document.getElementById('beakChart'), {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                { label: 'Nut Beak', data: history.Nut, borderColor: '#795548', fill: false, tension: 0.3 },
+                { label: 'Berry Beak', data: history.Berry, borderColor: '#2e7d32', fill: false, tension: 0.3 },
+                { label: 'Finch Beak', data: history.Finch, borderColor: '#fbc02d', fill: false, tension: 0.3 }
+            ]
+        },
+        options: { responsive: true, plugins: { title: { display: true, text: 'Beak Type (Specialization) Over Time' } } }
+    });
+}
+
+// Initial Run
+runSimulation();
+</script>
+
+</body>
+</html>
